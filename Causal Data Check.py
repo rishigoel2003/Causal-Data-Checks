@@ -70,8 +70,8 @@ def generate_train_jobcorp():
     data = pd.read_csv(r"C:\Users\Rishi\OneDrive\Documents\GitHub\Causal-Data-Checks\JCdata.csv", sep=" ")
 
     sub = data
-    # sub = data.loc[data["m"] > 0, :]
-    # sub = sub.loc[sub["d"] >= 40, :]
+    sub = data.loc[data["m"] > 0, :]
+    sub = sub.loc[sub["d"] >= 40, :]
     outcome = sub["m"].to_numpy()
     treatment = sub["d"].to_numpy()
     characteristics = sub.iloc[:, 3:].to_numpy()
@@ -87,13 +87,6 @@ def generate_test_jobcorp():
 def get_kernel_func() -> Tuple[AbsKernel, AbsKernel]:
     return GaussianKernel(), GaussianKernel()
 
-
-
-
-
-
-
-#All Prior Code is almost exactly extracted from https://github.com/liyuan9988/KernelCausalFunction/tree/master
 
 
 
@@ -122,6 +115,10 @@ treatment_kernel_func.fit(Train.treatment, )
 treatment_kernel = treatment_kernel_func.cal_kernel_mat(Train.treatment, Train.treatment)
 characteristics_kernel = characteristics_kernel_func.cal_kernel_mat(Train.characteristics, Train.characteristics)
 n_data = treatment_kernel.shape[0]
+
+
+
+#All Prior Code is almost exactly extracted from https://github.com/liyuan9988/KernelCausalFunction/tree/master
 
 
 
