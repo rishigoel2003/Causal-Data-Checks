@@ -1,13 +1,9 @@
-from filelock import FileLock
 import numpy as np
-import pathlib
 import pandas as pd
 
-from typing import NamedTuple, Optional, Dict, Any, Tuple
-
-import numpy as np
-
+from typing import NamedTuple, Optional,Tuple
 from scipy.spatial.distance import cdist
+from scipy.sparse import issparse
 
 
 class ATETrainDataSet(NamedTuple):
@@ -97,6 +93,10 @@ def get_kernel_func() -> Tuple[AbsKernel, AbsKernel]:
 
 
 
+#All Prior Code is almost exactly extracted from https://github.com/liyuan9988/KernelCausalFunction/tree/master
+
+
+
 
 Train = generate_train_jobcorp()
 Test = generate_test_jobcorp()
@@ -114,6 +114,7 @@ print(np.shape(outcome))
 train_treatment = np.array(Train.treatment, copy=True)
 outcome = np.array(Train.outcome, copy=True)
 
+
 characteristics_kernel_func, treatment_kernel_func = get_kernel_func()
 characteristics_kernel_func.fit(Train.characteristics, )
 treatment_kernel_func.fit(Train.treatment, )
@@ -122,10 +123,31 @@ treatment_kernel = treatment_kernel_func.cal_kernel_mat(Train.treatment, Train.t
 characteristics_kernel = characteristics_kernel_func.cal_kernel_mat(Train.characteristics, Train.characteristics)
 n_data = treatment_kernel.shape[0]
 
-lam = 1
-# if isinstance(lam, list):
-#     lam_score = [cal_loocv(treatment_kernel * characteristics_kernel, outcome, lam) for lam in lam]
-#     lam = lam[np.argmin(lam_score)]
 
-kernel_mat = treatment_kernel * characteristics_kernel + n_data * lam * np.eye(n_data)
-mean_characteristics_kernel = np.mean(characteristics_kernel, axis=0)
+
+
+def check_conditions(lam):
+    # Create the kernel matrix
+    kernel_mat = treatment_kernel * characteristics_kernel + n_data * lam * np.eye(n_data)
+    # mean_characteristics_kernel = np.mean(characteristics_kernel, axis=0)
+
+    # Check sparsity
+    non_zero_elements = np.count_nonzero(kernel_mat)
+    total_elements = kernel_mat.size
+    sparsity = 1 - (non_zero_elements / total_elements)
+    
+    # Check condition number
+    condition_number = np.linalg.cond(kernel_mat)
+    
+    # Check rank
+    rank = np.linalg.matrix_rank(kernel_mat)
+
+    print(f"Sparsity: {sparsity:.4f}")
+    print(f"Condition Number: {condition_number:.4f}")
+    print(f"Rank: {rank}")
+
+    return sparsity,condition_number,rank
+
+
+check_conditions(1)
+
