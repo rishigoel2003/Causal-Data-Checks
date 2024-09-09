@@ -5,6 +5,12 @@ from typing import NamedTuple, Optional,Tuple
 from scipy.spatial.distance import cdist
 from scipy.sparse import issparse
 
+import os
+
+
+from tqdm.auto import tqdm
+
+
 
 class ATETrainDataSet(NamedTuple):
     treatment: np.ndarray
@@ -104,6 +110,7 @@ print(np.shape(outcome))
 
 
 
+
 train_treatment = np.array(Train.treatment, copy=True)
 outcome = np.array(Train.outcome, copy=True)
 
@@ -119,6 +126,16 @@ n_data = treatment_kernel.shape[0]
 
 
 #All Prior Code is almost exactly extracted from https://github.com/liyuan9988/KernelCausalFunction/tree/master
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -139,12 +156,96 @@ def check_conditions(lam):
     # Check rank
     rank = np.linalg.matrix_rank(kernel_mat)
 
-    print(f"Sparsity: {sparsity:.4f}")
-    print(f"Condition Number: {condition_number:.4f}")
-    print(f"Rank: {rank}")
+    # print(f"Sparsity: {sparsity:.4f}")
+    # print(f"Condition Number: {condition_number:.4f}")
+    # print(f"Rank: {rank}")
 
     return sparsity,condition_number,rank
 
 
-check_conditions(1)
+#make a loss function that balances high rank, low condition number and high sparsity
 
+def loss(sparsity,condition,rank):
+    return 1/sparsity + condition + 1/rank
+
+
+
+
+
+
+
+n_lambs = 1
+
+lambda_vals = np.linspace(0.005,1,n_lambs)
+
+
+import matplotlib.pyplot as plt
+
+
+
+# Path to the CSV file
+csv_path = os.path.join(r"C:\Users\Rishi\OneDrive\Documents\GitHub\Causal-Data-Checks", 'kernel_conditions.csv')
+
+# Initialize the CSV file with headers before the loop
+with open(csv_path, 'w') as f:
+    f.write('Lambda,Sparsity,Condition Number,Rank\n')
+
+n_lambs = 10
+lambda_vals = np.linspace(0.005, 1, n_lambs)
+
+sparsity_list = np.zeros(n_lambs)
+condition_list = np.zeros(n_lambs)
+rank_list = np.zeros(n_lambs)
+
+# Initialize count correctly in the loop
+count = 0
+
+# Run check_conditions for each lam and collect results
+for i in tqdm(range(n_lambs)):
+    sparsity, condition, rank = check_conditions(lambda_vals[count])
+    sparsity_list[count] = sparsity
+    condition_list[count] = condition
+    rank_list[count] = rank
+
+    with open(csv_path, 'a') as f:
+        f.write(f"{lambda_vals[count]},{sparsity},{condition},{rank}\n")
+
+    count += 1  # Increment correctly
+
+
+base_path = r"C:\Users\Rishi\OneDrive\Documents\GitHub\Causal-Data-Checks\Figs"
+
+plt.figure(figsize=(10, 6))
+plt.plot(lambda_vals, sparsity_list, label='Sparsity', color='b')
+plt.xlabel('Lambda')
+plt.ylabel('Sparsity')
+plt.title('Sparsity vs Lambda')
+plt.grid(True)
+sparsity_plot_path = os.path.join(base_path, 'sparsity_plot.png')
+plt.savefig(sparsity_plot_path)
+plt.close()  # Close the figure
+
+# Plot and save condition
+plt.figure(figsize=(10, 6))
+plt.plot(lambda_vals, condition_list, label='Condition', color='g')
+plt.xlabel('Lambda')
+plt.ylabel('Condition')
+plt.title('Condition vs Lambda')
+plt.grid(True)
+condition_plot_path = os.path.join(base_path, 'condition_plot.png')
+plt.savefig(condition_plot_path)
+plt.close()  # Close the figure
+
+# Plot and save rank
+plt.figure(figsize=(10, 6))
+plt.plot(lambda_vals, rank_list, label='Rank', color='r')
+plt.xlabel('Lambda')
+plt.ylabel('Rank')
+plt.title('Rank vs Lambda')
+plt.grid(True)
+rank_plot_path = os.path.join(base_path, 'rank_plot.png')
+plt.savefig(rank_plot_path)
+plt.close()  # Close the figure
+
+# print(f"CSV saved to: {csv_path}")
+# print(f"Plot saved to: {plot_path}")
