@@ -190,7 +190,9 @@ csv_path = os.path.join(r"C:\Users\Rishi\OneDrive\Documents\GitHub\Causal-Data-C
 with open(csv_path, 'w') as f:
     f.write('Lambda,Sparsity,Condition Number,Rank\n')
 
-n_lambs = 10
+
+
+n_lambs = 1000 #~5 hours (~18 seconds per iteration)
 lambda_vals = np.linspace(0.005, 1, n_lambs)
 
 sparsity_list = np.zeros(n_lambs)
