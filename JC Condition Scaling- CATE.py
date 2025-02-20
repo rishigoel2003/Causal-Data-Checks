@@ -111,31 +111,65 @@ class BinaryKernel(AbsKernel):
         return res
 
 
-def generate_test_synthetic() -> CATETestDataSet:
-    covariate = np.array([-0.4, -0.2, 0.0, 0.2, 0.4])
-    treatment = np.array([1, 1, 1, 1, 1])  # only test D=1
-    structural = covariate * ((1 + 2 * covariate) ** 2) * ((covariate - 1) ** 2)
-    return CATETestDataSet(covariate=covariate[:, np.newaxis],
-                           treatment=treatment[:, np.newaxis],
-                           structural=structural[:, np.newaxis])
+# def generate_test_synthetic() -> CATETestDataSet:
+#     covariate = np.array([-0.4, -0.2, 0.0, 0.2, 0.4])
+#     treatment = np.array([1, 1, 1, 1, 1])  # only test D=1
+#     structural = covariate * ((1 + 2 * covariate) ** 2) * ((covariate - 1) ** 2)
+#     return CATETestDataSet(covariate=covariate[:, np.newaxis],
+#                            treatment=treatment[:, np.newaxis],
+#                            structural=structural[:, np.newaxis])
 
 
-def generate_train_synthetic(data_size: int,
-                             rand_seed: int = 42) -> CATETrainDataSet:
-    rng = default_rng(seed=rand_seed)
-    covariate = rng.uniform(low=-0.5, high=0.5, size=(data_size,))
-    x1 = 1 + 2 * covariate + rng.uniform(low=-0.5, high=0.5, size=(data_size,))
-    x2 = 1 + 2 * covariate + rng.uniform(low=-0.5, high=0.5, size=(data_size,))
-    x3 = (covariate - 1) ** 2 + rng.uniform(low=-0.5, high=0.5, size=(data_size,))
-    backdoor = np.c_[x1, x2, x3]
-    prob = 1.0 / (1.0 + np.exp(-0.5 * (covariate + x1 + x2 + x3)))
-    treatment = (rng.random(data_size) < prob).astype(float)
-    outcome = covariate * x1 * x2 * x3 + rng.normal(0.0, 0.25, size=(data_size, ))
-    outcome *= treatment
-    return CATETrainDataSet(treatment=treatment[:, np.newaxis],
-                            characteristics=backdoor,
-                            covariate=covariate[:, np.newaxis],
-                            outcome=outcome[:, np.newaxis])
+# def generate_train_synthetic(data_size: int,
+#                              rand_seed: int = 42) -> CATETrainDataSet:
+#     rng = default_rng(seed=rand_seed)
+#     covariate = rng.uniform(low=-0.5, high=0.5, size=(data_size,))
+#     x1 = 1 + 2 * covariate + rng.uniform(low=-0.5, high=0.5, size=(data_size,))
+#     x2 = 1 + 2 * covariate + rng.uniform(low=-0.5, high=0.5, size=(data_size,))
+#     x3 = (covariate - 1) ** 2 + rng.uniform(low=-0.5, high=0.5, size=(data_size,))
+#     backdoor = np.c_[x1, x2, x3]
+#     prob = 1.0 / (1.0 + np.exp(-0.5 * (covariate + x1 + x2 + x3)))
+#     treatment = (rng.random(data_size) < prob).astype(float)
+#     outcome = covariate * x1 * x2 * x3 + rng.normal(0.0, 0.25, size=(data_size, ))
+#     outcome *= treatment
+#     return CATETrainDataSet(treatment=treatment[:, np.newaxis],
+#                             characteristics=backdoor,
+#                             covariate=covariate[:, np.newaxis],
+#                             outcome=outcome[:, np.newaxis])
+
+
+
+from sklearn.utils import shuffle
+
+
+def generate_train_jobcorp(data_size):
+    # data = pd.read_csv(DATA_PATH.joinpath("job_corps/JCdata.csv"), sep=" ")
+    data = pd.read_csv(r"C:\Users\Rishi\OneDrive\Documents\GitHub\Causal-Data-Checks\JCdata.csv", sep=" ")
+
+
+    sub = data.loc[data["m"] > 0, :]
+    sub = sub.loc[sub["d"] >= 40, :]
+
+    sub = shuffle(sub).iloc[:data_size]
+
+    outcome = sub["m"].to_numpy()
+    treatment = sub["d"].to_numpy()
+    covariate = sub["age"].to_numpy()
+    backdoor = sub.iloc[:, 3:].drop("age", axis=1).to_numpy()
+    return CATETrainDataSet(characteristics=backdoor,
+                            outcome=outcome[:, np.newaxis],
+                            treatment=treatment[:, np.newaxis],
+                            covariate=covariate[:, np.newaxis])
+
+
+def generate_test_jobcorp():
+    treatment = np.linspace(40, 2500, 1000)
+    covariate = np.arange(16, 25)
+    data = np.array(list(product(treatment, covariate)))
+    return CATETestDataSet(treatment=data[:, [0]],
+                           covariate=data[:, [1]],
+                           structural=None)
+
 
 
 
@@ -178,7 +212,7 @@ import matplotlib.pyplot as plt
 
 
 # Path to the CSV file
-csv_path = os.path.join(r"C:\Users\Rishi\OneDrive\Documents\GitHub\Causal-Data-Checks", 'kernel_conditions_Synthetic_Scaling_CATE.csv')
+csv_path = os.path.join(r"C:\Users\Rishi\OneDrive\Documents\GitHub\Causal-Data-Checks", 'kernel_conditions_JC_Scaling_CATE.csv')
 
 # Initialize the CSV file with headers before the loop
 with open(csv_path, 'w') as f:
@@ -187,7 +221,7 @@ with open(csv_path, 'w') as f:
 
 
 n_data_vals = 500 # 
-data_size_vals = np.linspace(500, 4000, n_data_vals)
+data_size_vals = np.linspace(500, 2913, n_data_vals)
 data_size_vals = [int(x) for x in data_size_vals]
 
 # data_size_vals = [x for x in data_size_vals if x > 3824]
@@ -209,15 +243,15 @@ for i in tqdm(range(len(data_size_vals))):
 
     data_size=data_size_vals[i]
 
-    Train = generate_train_synthetic(data_size)
-    Test = generate_test_synthetic()
+    Train = generate_train_jobcorp(data_size)
+    Test = generate_test_jobcorp()
 
     train_treatment = np.array(Train.treatment, copy=True)
     outcome = np.array(Train.outcome, copy=True)
     train_covariate = np.array(Train.covariate, copy=True)
 
 
-    data_name = "synthetic"
+    data_name = "job_corp"
     characteristics_kernel_func, treatment_kernel_func,covariate_kernel_func = get_kernel_func(data_name)
     characteristics_kernel_func.fit(Train.characteristics, )
     treatment_kernel_func.fit(Train.treatment, )
@@ -236,16 +270,14 @@ for i in tqdm(range(len(data_size_vals))):
     lam1 = np.linspace(0.001,0.0001,20)
     score = [cal_loocv(all_kernel_mat, outcome, reg) for reg in lam1]
     lam1 = lam1[np.argmin(score)]
-    # print(lam1)
 
 
-    lam2 = np.linspace(0.001,0.0001,20)
+    lam2 = np.linspace(0.01,0.001,20)
     score = [cal_loocv_emb(Covariate_kernel, characteristics_kernel, reg) for reg in lam2]
     lam2 = lam2[np.argmin(score)]
-    # print(lam2)
 
-    # lam1 = 0.0001
-    # lam2 = 0.0001
+    # lam1 = 0.005
+    # lam2 = 0.005
 
     condition,cov_condition = check_conditions(Covariate_kernel, all_kernel_mat,n_data,lam1,lam2)
     # sparsity_list[count] = sparsity
